@@ -1,5 +1,6 @@
 # basic files
 .DS_Store
+__pycache__
 
 # hide files which are not needed for the project
 tested-data/
