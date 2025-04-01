@@ -23,23 +23,14 @@ def correlation_matrix(df, figsize=(10, 8)):
     """
     # Calculate the correlation matrix
     corr = df.corr()
-
-    # Create a mask for the upper triangle
     mask = np.triu(np.ones_like(corr, dtype=bool))
 
     # Set up the matplotlib figure
     fig, ax = plt.subplots(figsize=figsize)
-
-    # Generate a heatmap with the mask applied
     sns.heatmap(corr, mask=mask, annot=True, cmap="coolwarm", fmt=".2f", linewidths=0.5, ax=ax, cbar_kws={'shrink': 0.8})
-
-    # Title and labels
     ax.set_title("Correlation Matrix", fontsize=16)
     plt.xticks(rotation=45, ha='right')
     plt.yticks(rotation=0)
 
     # Display the plot
     plt.show()
-
-
-
