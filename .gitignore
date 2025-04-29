@@ -5,3 +5,4 @@ __pycache__
 # hide files which are not needed for the project
 tested-data/
 testing/
+99_testing/
