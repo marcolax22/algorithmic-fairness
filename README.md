@@ -47,8 +47,12 @@ The functions folder contains the functions used in the code.
 
 The recruitment dataset is synthetically generated, drawing on a combination of predefined assumptions and historical recruitment records of Dutch graduates. It is specifically designed to simulate graduate-level hiring practices within the Netherlands, particularly in the STEM sector. The dataset contains detailed information on individual applicants, including historical labels indicating past hiring outcomes. Although the data is synthetic, it closely mirrors real-world hiring patterns and decisions, making it a valuable resource for developing and evaluating fairness-aware predictive models.
 
+## Codebook
+
+...
+
 ## Graphics
 
-This folder contains the graphics used in the thesis.
+This folder contains the graphics used in the thesis. The figures are named according to the figure names in the thesis.
 
 # Citation
