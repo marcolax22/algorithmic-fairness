@@ -137,7 +137,7 @@ def visualize_qualification_scores(
     # Print summary statistics
     if show_summary:
         print("\nSummary Statistics:")
-        summary = df_gender.groupby(['Stage', 'Gender'])['Score'].agg(['mean', 'std']).round(4)
+        summary = df_gender.groupby(['Stage', 'Gender'])['Score'].agg(['mean', 'std', 'median']).round(4)
         print(summary)
     
     return fig, df_gender

@@ -10,11 +10,10 @@ from fairlearn.reductions import ExponentiatedGradient, DemographicParity, TrueP
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
 
 # -------------------------------------------------------------------------------
 # Post Selection Bias Function
-import numpy as np
-
 def weighted_sampling(X_test_sub, beta, target_gender, n_samples=20, noise_level=1e-2, random_state=None):
     """
     Perform weighted sampling with qualification-based weights and gender bias,
@@ -50,7 +49,7 @@ def weighted_sampling(X_test_sub, beta, target_gender, n_samples=20, noise_level
 # -------------------------------------------------------------------------------
 # function for simulation of the model
 def simulation_process(X_test, y_test, model, num_iterations, model_type, beta):
-
+    # This function remains the same as it only uses the test set
     # list for storing results of the simulation process
     gender_shares_first_stage = []
     gender_shares_second_stage = []
@@ -204,16 +203,29 @@ def simulation_process(X_test, y_test, model, num_iterations, model_type, beta):
 
 
 # -------------------------------------------------------------------------------
-# function for logistic regression model
-def logistic_regression(X, y, model_type, discrimination, test_size=0.2, random_state=42, 
-                        weights = None, enforce_fairness=False, fairness_constraint="demographic_parity"):
+# Modified function for logistic regression model with validation set
+def logistic_regression(X, y, model_type, discrimination, test_size=0.2, val_size=0.2, random_state=42, 
+                        weights=None, enforce_fairness=False, fairness_constraint="demographic_parity"):
     """
     Function to train a logistic regression model, optionally enforcing fairness 
     (demographic parity, equalized odds, or equal opportunity).
+    Now includes a validation set for confusion matrix evaluation.
     """
-     # Split X and y only
-    X_train, X_test, y_train, y_test = train_test_split(
+    from sklearn.model_selection import train_test_split
+    import pandas as pd
+    from sklearn.linear_model import LogisticRegression
+    from fairlearn.postprocessing import ThresholdOptimizer
+    from sklearn.metrics import confusion_matrix
+    
+    # First split: separate test set from the rest
+    X_train_val, X_test, y_train_val, y_test = train_test_split(
         X, y, test_size=test_size, random_state=random_state
+    )
+    
+    # Second split: separate validation set from training set
+    val_adjusted = val_size / (1 - test_size)
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_train_val, y_train_val, test_size=val_adjusted, random_state=random_state
     )
 
     base_model = LogisticRegression(
@@ -226,7 +238,7 @@ def logistic_regression(X, y, model_type, discrimination, test_size=0.2, random_
 
     if enforce_fairness:
         if fairness_constraint == "demographic_parity":
-            constraint =  "demographic_parity"
+            constraint = "demographic_parity"
         elif fairness_constraint == "equalized_odds":
             constraint = "equalized_odds"
         elif fairness_constraint == "equal_opportunity":
@@ -234,40 +246,132 @@ def logistic_regression(X, y, model_type, discrimination, test_size=0.2, random_
         else:
             raise ValueError("fairness_constraint must be 'demographic_parity', 'equalized_odds', or 'equal_opportunity'")
         
-        # Align sensitive attribute A to the train/test splits
         A_train = X_train['gender']
-        X_train = X_train.drop(columns=['gender'])
+        X_train_no_gender = X_train.drop(columns=['gender'])
+        A_val = X_val['gender']
+        X_val_no_gender = X_val.drop(columns=['gender'])
 
         postprocess = ThresholdOptimizer(
             estimator=base_model,
-            constraints= constraint,
+            constraints=constraint,
             prefit=False
         )
-
-        # Fit the model with the training data
-        model = postprocess.fit(X_train, y_train, sensitive_features=A_train)
+        model = postprocess.fit(X_train_no_gender, y_train, sensitive_features=A_train)
+        y_val_pred = model.predict(X_val_no_gender, sensitive_features=A_val)
     else:
         model = base_model
         model.fit(X_train, y_train, sample_weight=weights)
-    
-    # Call simulation process
+        y_val_pred = model.predict(X_val)
+
+    # Validation confusion matrix
+    cm = confusion_matrix(y_val, y_val_pred)
+    cm_df = pd.DataFrame(cm, index=['Actual 0', 'Actual 1'], columns=['Predicted 0', 'Predicted 1'])
+
+    tn, fp, fn, tp = cm.ravel()
+    accuracy = (tp + tn) / (tp + tn + fp + fn)
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+
+    fairness_metrics = {}
+    if 'gender' in X_val.columns:
+        gender_rates = {}
+        for gender_val in [0, 1]:  # 0 for male, 1 for female
+            gender_mask = X_val['gender'] == gender_val
+            if sum(gender_mask) > 0:
+                y_val_gender = y_val[gender_mask]
+                y_val_pred_gender = y_val_pred[gender_mask]
+                cm_gender = confusion_matrix(y_val_gender, y_val_pred_gender)
+
+                if cm_gender.size == 4:
+                    tn_g, fp_g, fn_g, tp_g = cm_gender.ravel()
+
+                    tpr = tp_g / (tp_g + fn_g) if (tp_g + fn_g) > 0 else 0
+                    fpr = fp_g / (fp_g + tn_g) if (fp_g + tn_g) > 0 else 0
+                    fnr = fn_g / (fn_g + tp_g) if (fn_g + tp_g) > 0 else 0
+                    tnr = tn_g / (tn_g + fp_g) if (tn_g + fp_g) > 0 else 0
+
+                    gender_rates[gender_val] = {
+                        'tpr': tpr,
+                        'fpr': fpr,
+                        'fnr': fnr,
+                        'tnr': tnr,
+                        'tp': tp_g,
+                        'fp': fp_g,
+                        'fn': fn_g,
+                        'tn': tn_g
+                    }
+
+        if 0 in gender_rates and 1 in gender_rates:
+            tpr_diff = abs(gender_rates[0]['tpr'] - gender_rates[1]['tpr'])
+            fpr_diff = abs(gender_rates[0]['fpr'] - gender_rates[1]['fpr'])
+            fnr_diff = abs(gender_rates[0]['fnr'] - gender_rates[1]['fnr'])
+            tnr_diff = abs(gender_rates[0]['tnr'] - gender_rates[1]['tnr'])
+
+            fairness_metrics['tpr_difference'] = tpr_diff
+            fairness_metrics['fpr_difference'] = fpr_diff
+            fairness_metrics['fnr_difference'] = fnr_diff
+            fairness_metrics['tnr_difference'] = tnr_diff
+            fairness_metrics['equalized_odds_difference'] = (tpr_diff + fpr_diff) / 2  # standard metric
+
+            fairness_metrics['male_tpr'] = gender_rates[0]['tpr']
+            fairness_metrics['female_tpr'] = gender_rates[1]['tpr']
+            fairness_metrics['male_fpr'] = gender_rates[0]['fpr']
+            fairness_metrics['female_fpr'] = gender_rates[1]['fpr']
+            fairness_metrics['male_fnr'] = gender_rates[0]['fnr']
+            fairness_metrics['female_fnr'] = gender_rates[1]['fnr']
+            fairness_metrics['male_tnr'] = gender_rates[0]['tnr']
+            fairness_metrics['female_tnr'] = gender_rates[1]['tnr']
+
+
+            fairness_metrics['male_cm'] = {
+                'tp': gender_rates[0]['tp'],
+                'fp': gender_rates[0]['fp'],
+                'fn': gender_rates[0]['fn'],
+                'tn': gender_rates[0]['tn']
+            }
+            fairness_metrics['female_cm'] = {
+                'tp': gender_rates[1]['tp'],
+                'fp': gender_rates[1]['fp'],
+                'fn': gender_rates[1]['fn'],
+                'tn': gender_rates[1]['tn']
+            }
+
+    # Simulation
     (gender_shares1, all_selected, gender_shares2, qual_male_first_stage, qual_female_first_stage,
      qual_male_second_stage, qual_female_second_stage) = simulation_process(
         X_test, y_test, model, 500, model_type, discrimination
     )
 
     return (X_train, y_train, model, gender_shares1, all_selected, gender_shares2, 
-            qual_male_first_stage, qual_female_first_stage, qual_male_second_stage, qual_female_second_stage)
+            qual_male_first_stage, qual_female_first_stage, qual_male_second_stage, qual_female_second_stage,
+            cm_df, fairness_metrics)
+
 
 # -------------------------------------------------------------------------------
-# function for random forest model
-def random_forest_model(X, y, model_type, discrimination, test_size=0.2, random_state=42, weights=None,
-                        enforce_fairness=False, fairness_constraint="demographic_parity"):
-    # Split X and y only
-    X_train, X_test, y_train, y_test = train_test_split(
+# Modified function for random forest model with validation set
+def random_forest_model(X, y, model_type, discrimination, test_size=0.2, val_size=0.2, random_state=42, weights=None,
+                   enforce_fairness=False, fairness_constraint="demographic_parity"):
+    from sklearn.model_selection import train_test_split
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.metrics import confusion_matrix
+    import numpy as np
+    import pandas as pd
+    from fairlearn.postprocessing import ThresholdOptimizer
+    
+    # First split: separate test set from the rest
+    X_train_val, X_test, y_train_val, y_test = train_test_split(
         X, y, test_size=test_size, random_state=random_state
     )
-
+    
+    # Second split: separate validation set from training set
+    # Adjust validation size to get the right proportion from the remaining data
+    val_adjusted = val_size / (1 - test_size)
+    # Using the same random_state to ensure reproducibility across all splits
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_train_val, y_train_val, test_size=val_adjusted, random_state=random_state
+    )
+    
     # Train base model
     base_model = RandomForestClassifier(
         n_estimators=200,
@@ -277,8 +381,7 @@ def random_forest_model(X, y, model_type, discrimination, test_size=0.2, random_
         bootstrap=False,
         class_weight=None,
         random_state=random_state)
-
-
+    
     if enforce_fairness:
         if fairness_constraint == "demographic_parity":
             constraint = "demographic_parity"
@@ -288,29 +391,128 @@ def random_forest_model(X, y, model_type, discrimination, test_size=0.2, random_
             constraint = "true_positive_rate_parity"
         else:
             raise ValueError("Invalid fairness constraint")
-
-        # Align sensitive attribute A to the train/test splits
+        
+        # Align sensitive attribute A to the train/val splits
         A_train = X_train['gender']
-        X_train = X_train.drop(columns=['gender'])
-
+        X_train_no_gender = X_train.drop(columns=['gender'])
+        
+        A_val = X_val['gender']
+        X_val_no_gender = X_val.drop(columns=['gender'])
+        
         postprocess = ThresholdOptimizer(
             estimator=base_model,
-            constraints= constraint,
+            constraints=constraint,
             prefit=False
         )
-
         # Fit the model with the training data
-        model = postprocess.fit(X_train, y_train, sensitive_features=A_train)
+        model = postprocess.fit(X_train_no_gender, y_train, sensitive_features=A_train)
+        
+        # Generate predictions on validation set to create confusion matrix
+        y_val_pred = model.predict(X_val_no_gender, sensitive_features=A_val)
+        
     else:
+        # Keep the original behavior - train with gender included when no fairness constraint
         model = base_model
         model = model.fit(X_train, y_train, sample_weight=weights)
+        
+        # Predict using the validation data as is (with gender)
+        y_val_pred = model.predict(X_val)
+    
+    # Create and save confusion matrix from validation set
+    cm = confusion_matrix(y_val, y_val_pred)
+    
+    # Save confusion matrix to CSV
+    cm_df = pd.DataFrame(cm, 
+                        index=['Actual 0', 'Actual 1'], 
+                        columns=['Predicted 0', 'Predicted 1'])
+    
+    # Create filename based on parameters
+    fairness_str = "with_fairness" if enforce_fairness else "no_fairness"
+    
+    # Calculate and print metrics on validation set
+    tn, fp, fn, tp = cm.ravel()
+    accuracy = (tp + tn) / (tp + tn + fp + fn)
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+    
+    # Calculate metrics on validation set
+    tn, fp, fn, tp = cm.ravel()
+    accuracy = (tp + tn) / (tp + tn + fp + fn)
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+    
+    fairness_metrics = {}
+    if 'gender' in X_val.columns:
+        gender_rates = {}
+        for gender_val in [0, 1]:  # 0 for male, 1 for female
+            gender_mask = X_val['gender'] == gender_val
+            if sum(gender_mask) > 0:
+                y_val_gender = y_val[gender_mask]
+                y_val_pred_gender = y_val_pred[gender_mask]
+                cm_gender = confusion_matrix(y_val_gender, y_val_pred_gender)
 
-    # Call simulation process
+                if cm_gender.size == 4:
+                    tn_g, fp_g, fn_g, tp_g = cm_gender.ravel()
+
+                    tpr = tp_g / (tp_g + fn_g) if (tp_g + fn_g) > 0 else 0
+                    fpr = fp_g / (fp_g + tn_g) if (fp_g + tn_g) > 0 else 0
+                    fnr = fn_g / (fn_g + tp_g) if (fn_g + tp_g) > 0 else 0
+                    tnr = tn_g / (tn_g + fp_g) if (tn_g + fp_g) > 0 else 0
+
+                    gender_rates[gender_val] = {
+                        'tpr': tpr,
+                        'fpr': fpr,
+                        'fnr': fnr,
+                        'tnr': tnr,
+                        'tp': tp_g,
+                        'fp': fp_g,
+                        'fn': fn_g,
+                        'tn': tn_g
+                    }
+
+        if 0 in gender_rates and 1 in gender_rates:
+            tpr_diff = abs(gender_rates[0]['tpr'] - gender_rates[1]['tpr'])
+            fpr_diff = abs(gender_rates[0]['fpr'] - gender_rates[1]['fpr'])
+            fnr_diff = abs(gender_rates[0]['fnr'] - gender_rates[1]['fnr'])
+            tnr_diff = abs(gender_rates[0]['tnr'] - gender_rates[1]['tnr'])
+
+            fairness_metrics['tpr_difference'] = tpr_diff
+            fairness_metrics['fpr_difference'] = fpr_diff
+            fairness_metrics['fnr_difference'] = fnr_diff
+            fairness_metrics['tnr_difference'] = tnr_diff
+            fairness_metrics['equalized_odds_difference'] = (tpr_diff + fpr_diff) / 2  # standard metric
+
+            fairness_metrics['male_tpr'] = gender_rates[0]['tpr']
+            fairness_metrics['female_tpr'] = gender_rates[1]['tpr']
+            fairness_metrics['male_fpr'] = gender_rates[0]['fpr']
+            fairness_metrics['female_fpr'] = gender_rates[1]['fpr']
+            fairness_metrics['male_fnr'] = gender_rates[0]['fnr']
+            fairness_metrics['female_fnr'] = gender_rates[1]['fnr']
+            fairness_metrics['male_tnr'] = gender_rates[0]['tnr']
+            fairness_metrics['female_tnr'] = gender_rates[1]['tnr']
+
+
+            fairness_metrics['male_cm'] = {
+                'tp': gender_rates[0]['tp'],
+                'fp': gender_rates[0]['fp'],
+                'fn': gender_rates[0]['fn'],
+                'tn': gender_rates[0]['tn']
+            }
+            fairness_metrics['female_cm'] = {
+                'tp': gender_rates[1]['tp'],
+                'fp': gender_rates[1]['fp'],
+                'fn': gender_rates[1]['fn'],
+                'tn': gender_rates[1]['tn']
+            }
+    
+    # Call simulation process (still using the test set)
     (gender_shares1, all_selected, gender_shares2, qual_male_first_stage, qual_female_first_stage,
      qual_male_second_stage, qual_female_second_stage) = simulation_process(
         X_test, y_test, model, 500, model_type, discrimination
     )
-
-    return (X_train, y_train, model, gender_shares1, all_selected, gender_shares2, 
-            qual_male_first_stage, qual_female_first_stage, qual_male_second_stage, qual_female_second_stage)
-
+    
+    return (X_train, y_train, model, gender_shares1, all_selected, gender_shares2,
+            qual_male_first_stage, qual_female_first_stage, qual_male_second_stage, qual_female_second_stage,
+            cm_df, fairness_metrics)  # Now returns the fairness metrics as well
