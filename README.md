@@ -11,7 +11,8 @@ Thesis submitted on: 02.06.2025 </p>
     - [Functions](#functions)
     - [Data](#data)
     - [Graphics](#graphics)
-- [Citation](#citation)
+    - [Preprocessing Scripts](#preprocessing-scripts)
+- [Simulation](#simulation)
 
 # Summary 
 
@@ -36,9 +37,13 @@ The functions folder contains the functions used in the code.
 
 `algorithmic_model.py`
 > This file contains the code for the logistic regression model and random forest model.
+> It furthermore contrains the functions for the post-selection bias mentioned in Section 3.2 of the thesis.
 
 `fairness_testing.py`
-> This f
+> This file contains the functions for the fairness testing of the datasets, to see the distribution of gender and the corrrelation between the features.
+
+`qualification.py`
+> This file contains the functions for the qualification distribution of the different outcomes from the simulation process.
 
 `simulation_vis.py`
 > This file contains the distribution visualization functions to see the effects of group fairness interventions and post-selection bias.
@@ -49,10 +54,25 @@ The recruitment dataset is synthetically generated, drawing on a combination of 
 
 ## Codebook
 
-...
+The codebook contains the codebook for the dataset. It contains the description of the dataset and the variables.
 
 ## Graphics
 
-This folder contains the graphics used in the thesis. The figures are named according to the figure names in the thesis.
+This folder contains the graphics used in the thesis.
 
-# Citation
+## Preprocessing Scripts
+
+The preprocessing scripts are used to preprocess the data for the simulation process.
+
+`data_preprocessing.ipynb`
+> This file contains the code for the preprocessing of the data to make the variables compatible for the simulation process.
+
+`fairness_problematic.ipynb`
+> This file contains the code for the fairness problematic. It shows the distribution of the gender and the correlation between the features. It uses the functions from the fairness_testing.py file.
+
+`hyperparameter_tuning.ipynb`
+> This file contains the code for the hyperparameter tuning of the two models with a validation set of the data.
+
+# Simulation
+
+The simulation is done in the `simulation-model.ipynb` file. It contains the code for the simulation process. It uses the functions from the functions folder. It outputs the results of the described Monte Carlo simulation process in the thesis.

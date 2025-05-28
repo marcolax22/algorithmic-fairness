@@ -7,62 +7,108 @@ It includes multiple sensitive attributes—such as age, gender that can be used
 ## Source Information
 van Otterloo, S. (2022). Utrecht fairness recruitment dataset. https://ictinstitute.nl/team/sieuwert-van-otterloo/
 
-## Columns Data
+## Dataset Columns Description
 
-### age
-- **Description**: Age in years of the applicant
+This section provides detailed information on each column in the dataset used for analyzing algorithmic fairness in hiring decisions. The data consists of various demographic, educational, and experiential attributes of applicants, alongside the final hiring decision.
+
+---
+
+### `age`
+- **Description**: The age of the applicant at the time of application.
 - **Type**: Integer
+- **Example**: `25`, `32`, `45`
 
-### gender
-- **Description**: Gender of the applicant (1: male, 2: female, 3: other)
+---
+
+### `gender`
+- **Description**: The self-identified gender of the applicant, encoded numerically.
+  - `0` = Male  
+  - `1` = Female  
+  - `2` = Other / Non-binary
+- **Type**: Integer (Categorical Encoding)
+
+---
+
+### `ind-debateclub`
+- **Description**: Indicates whether the applicant participated in a debate club.
+- **Type**: Boolean
+- **Values**: `True` or `False`
+
+---
+
+### `ind-entrepeneur_exp`
+- **Description**: Indicates whether the applicant has entrepreneurial experience (e.g., started a business, freelanced, etc.).
+- **Type**: Boolean
+- **Values**: `True` or `False`
+
+---
+
+### `ind-exact_study`
+- **Description**: Indicates whether the applicant pursued an academic field related to STEM (Science, Technology, Engineering, Mathematics).
+- **Type**: Boolean
+- **Values**: `True` or `False`
+
+---
+
+### `ind-international_exp`
+- **Description**: Indicates whether the applicant has international experience, such as studying or working abroad.
+- **Type**: Boolean
+- **Values**: `True` or `False`
+
+---
+
+### `ind-languages`
+- **Description**: Number of languages the applicant can speak fluently.
 - **Type**: Integer
+- **Typical Range**: `1` to `5`
 
-### ind-debateclub
-- **Description**: Particiipation in debate club
+---
+
+### `ind-previous_exp`
+- **Description**: Total years of prior work experience the applicant has.
+- **Type**: Integer
+- **Value Range**: `0` to `5`
+
+---
+
+### `ind-programming_exp`
+- **Description**: Indicates whether the applicant has prior experience with programming or coding.
 - **Type**: Boolean
-- **Example**: True, False
+- **Values**: `True` or `False`
+---
 
-### ind-entrepeneur_exp
-- **Description**: Entrepreneurial experience
+### `ind-testresults`
+- **Description**: Applicant’s score on an internal test administered as part of the recruitment process.
+- **Type**: Integer
+- **Score Range**: `0` to `50`
+
+---
+
+### `ind-university_grade`
+- **Description**: Grade Point Average (GPA) or equivalent final university grade of the applicant, on a 0–100 scale.
+- **Type**: Integer
+- **Score Range**: `0` to `100`
+- **Example**: `87`
+
+---
+
+### `nationality`
+- **Description**: Nationality or citizenship of the applicant.
+- **Type**: Categorical (Text)
+- **Examples**: `Dutch`, `German`, `French`, `Spanish`, `Italian`
+
+---
+
+### `sport`
+- **Description**: Main sport the applicant engages in or lists in their application.
+- **Type**: Categorical (Text)
+- **Examples**: `Football`, `Basketball`, `Tennis`, `Swimming`, `None`
+
+---
+
+### `decision`
+- **Description**: Final hiring decision for the applicant.
 - **Type**: Boolean
-- **Example**: True, False
-
-### ind-exact_study
-- **Description**: 
-- **Type**: 
-
-### ind-international_exp
-- **Description**:
-- **Type**:
-
-### ind-languages
-- **Description**: 
-- **Type**: 
-
-### ind-previous_exp
-- **Description**: 
-- **Type**: 
-
-### ind-programming_exp
-- **Description**: 
-- **Type**: 
-
-### ind-testresults
-- **Description**: 
-- **Type**: 
-
-### ind-university_grade
-- **Description**: 
-- **Type**: 
-
-### nationality
-- **Description**: 
-- **Type**: 
-
-### sport
-- **Description**: 
-- **Type**: 
-
-### decision
-- **Description**: 
-- **Type**: 
+- **Values**: 
+  - `True` = Applicant was hired  
+  - `False` = Applicant was not hired

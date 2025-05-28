@@ -14,7 +14,7 @@ from sklearn.metrics import confusion_matrix
 
 # -------------------------------------------------------------------------------
 # Post Selection Bias Function
-def weighted_sampling(X_test_sub, beta, target_gender, n_samples=20, noise_level=1e-2, random_state=None):
+def weighted_sampling(X_test_sub, beta, target_gender, n_samples=20, model = None, noise_level=1e-2, random_state=None):
     """
     Perform weighted sampling with qualification-based weights and gender bias,
     adding slight noise to make the selection more diverse/random.
@@ -29,8 +29,10 @@ def weighted_sampling(X_test_sub, beta, target_gender, n_samples=20, noise_level
     # Create a random generator
     rng = np.random.default_rng(42)
 
-    # Base weights with gender bias
-    base_weights = X_test_sub['qual'] * (1 + beta * (X_test_sub['gender'] == target_gender))
+    if model in ["logistic", "random_forest"]:
+        base_weights = X_test_sub['qual'] * (1 + beta * (X_test_sub['gender'] == target_gender))
+    else:
+        base_weights = X_test_sub['qual'] * (1 + beta * (X_test_sub['gender'] == target_gender))
 
     # Add small noise to break ties and introduce randomness
     noise = rng.normal(loc=1.0, scale=noise_level, size=len(base_weights))
@@ -112,7 +114,7 @@ def simulation_process(X_test, y_test, model, num_iterations, model_type, beta):
             # Combine equally weighted
             X_test_sub['qual'] = (uni_norm + test_norm + exp_norm) / 3
 
-            selected_candidates = weighted_sampling(X_test_sub, beta, target_gender=0, n_samples=20)
+            selected_candidates = weighted_sampling(X_test_sub, beta, target_gender=0, n_samples=20, model=model_type)
 
             selected_candidates['iteration'] = i
 
@@ -170,7 +172,7 @@ def simulation_process(X_test, y_test, model, num_iterations, model_type, beta):
             # create qualification column
             X_test_sub['qual'] = X_test_sub['ind-university_grade']
 
-            selected_candidates = weighted_sampling(X_test_sub, beta, target_gender=0, n_samples=20)
+            selected_candidates = weighted_sampling(X_test_sub, beta, target_gender=0, n_samples=20, model=model_type)
 
             selected_candidates['iteration'] = i
 
