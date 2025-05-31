@@ -1,6 +1,7 @@
 # Impact of Algorithmic Group Fairness Intervention on Hiring Decisions
 <p> Marco Lax <br>
-Thesis submitted on: 02.06.2025 </p>
+Thesis submitted on: 01.06.2025 <br>
+Thesis deadline: 02.06.2025 </p>
 
 ---
 
