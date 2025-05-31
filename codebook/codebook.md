@@ -2,7 +2,7 @@
 
 This codebook describes syntethic data on the hiring process of STEM education in the Netherlands. This dataset is designed to help educators and researchers explore and compare different definitions of algorithmic fairness. It offers a convenient way to illustrate concepts such as fairness through unawareness, group fairness, statistical parity, predictive parity, equalized odds, and treatment equality.
 
-It includes multiple sensitive attributes—such as age, gender that can be used to define a variety of protected or sensitive groups.
+It includes multiple sensitive attributes, such as age, gender that can be used to define a variety of protected or sensitive groups.
 
 ## Source Information
 van Otterloo, S. (2022). Utrecht fairness recruitment dataset. https://ictinstitute.nl/team/sieuwert-van-otterloo/
@@ -33,6 +33,13 @@ This section provides detailed information on each column in the dataset used fo
 - **Description**: Indicates whether the applicant participated in a debate club.
 - **Type**: Boolean
 - **Values**: `True` or `False`
+
+---
+
+### `ind-degree`
+- **Description**: Indicates the level of degree the applicant holds.
+- **Type**: Categorical (Text)
+- **Values**: `Bachelor`, `Master`, `PhD`
 
 ---
 
