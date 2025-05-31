@@ -51,7 +51,7 @@ This section provides detailed information on each column in the dataset used fo
 ---
 
 ### `ind-exact_study`
-- **Description**: Indicates whether the applicant pursued an academic field related to STEM (Science, Technology, Engineering, Mathematics).
+- **Description**: Indicates whether the applicant’s field of study directly matches the educational requirements of the job role.
 - **Type**: Boolean
 - **Values**: `True` or `False`
 
